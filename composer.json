@@ -1,0 +1,30 @@
+{
+  "name": "philippgrashoff/userforatk",
+  "description": "",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "platform": {
+      "php": "7.4"
+    }
+  },
+  "require": {
+    "atk4/data": "2.4.*",
+    "philippgrashoff/traitsforatkdata": "dev-master",
+    "philippgrashoff/tokenforatk": "dev-main",
+    "philippgrashoff/secondarymodelforatk": "dev-master"
+  },
+  "require-dev": {
+    "phpunit/phpunit": ">8"
+  },
+  "autoload": {
+    "psr-4": {
+      "tokenforatk\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "tokenforatk\\tests\\": "tests"
+    }
+  }
+}
