@@ -1,19 +1,16 @@
 <?php declare(strict_types=1);
 
-namespace PMRAtk\tests\phpunit\Data\Traits;
+namespace userforatk\tests;
 
-use auditforatk\Audit;
-use PMRAtk\Data\User;
-use PMRAtk\tests\phpunit\TestCase;
+use traitsforatkdata\TestCase;
+use userforatk\User;
 
-class MaxFailedLoginsTraitTest extends TestCase
+class MaxFailedLoginsTest extends TestCase
 {
 
     protected $sqlitePersistenceModels = [
         User::class,
-        Audit::class
     ];
-
 
     public function testFailedLoginIncrease()
     {
@@ -37,7 +34,8 @@ class MaxFailedLoginsTraitTest extends TestCase
         self::assertEquals(10, $user->getRemainingLogins());
         $user->addFailedLogin();
         self::assertEquals(9, $user->getRemainingLogins());
-        $user->maxFailedLogins = 1;
+        $value = 1;
+        $this->setProtected($user, 'maxFailedLogins', $value);
         self::assertEquals(0, $user->getRemainingLogins());
     }
 
@@ -62,7 +60,8 @@ class MaxFailedLoginsTraitTest extends TestCase
         $user->set('name', 'Jsdfsdf');
         $user->save();
         $user->addFailedLogin();
-        $user->maxFailedLogins = 1;
+        $value = 1;
+        $this->setProtected($user, 'maxFailedLogins', $value);
         self::assertFalse($user->hasTooManyFailedLogins());
         $user->addFailedLogin();
         self::assertTrue($user->hasTooManyFailedLogins());

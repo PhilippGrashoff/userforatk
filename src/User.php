@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace PMRAtk\Data;
+namespace userforatk;
 
-use atk4\data\Exception;
-use atk4\login\Field\Password;
+use Atk4\Data\Exception;
+use Atk4\Data\Model;
+use tokenforatk\Token;
 use traitsforatkdata\UniqueFieldTrait;
 use traitsforatkdata\UserException;
-use atk4\data\Model;
 
 
 class User extends Model
@@ -17,46 +17,58 @@ class User extends Model
     public $table = 'user';
     public $caption = 'Benutzer';
 
+    protected int $maxFailedLogins = 10;
+
 
     protected function init(): void
     {
         parent::init();
-        $this->addfields(
+        $this->addfield(
+
+            'name',
             [
-                [
-                    'name',
-                    'type' => 'string',
-                    'caption' => 'Name',
-                    'system' => true,
-                ],
-                [
-                    'firstname',
-                    'type' => 'string',
-                    'caption' => 'Vorname'
-                ],
-                [
-                    'lastname',
-                    'type' => 'string',
-                    'caption' => 'Nachname'
-                ],
-                [
-                    'username',
-                    'type' => 'string',
-                    'caption' => 'Benutzername',
-                    'ui' => ['form' => ['inputAttr' => ['autocomplete' => 'new-password']]]
-                ],
-                [
-                    'password',
-                    Password::class,
-                    'caption' => 'Passwort',
-                    'system' => true,
-                    'ui' => ['form' => ['inputAttr' => ['autocomplete' => 'new-password']]]
-                ],
-                [
-                    'role',
-                    'type' => 'string',
-                    'caption' => 'Benutzerrolle'
-                ]
+
+                'type' => 'string',
+                'caption' => 'Name',
+                'system' => true,
+            ]
+        );
+        $this->addfield(
+            'firstname',
+            [
+                'type' => 'string',
+                'caption' => 'Vorname'
+            ]
+        );
+        $this->addfield(
+            'lastname',
+            [
+                'type' => 'string',
+                'caption' => 'Nachname'
+            ]
+        );
+        $this->addfield(
+            'username',
+            [
+                'type' => 'string',
+                'caption' => 'Benutzername',
+                'ui' => ['form' => ['inputAttr' => ['autocomplete' => 'new-password']]]
+            ]
+        );
+        $this->addfield(
+            'password',
+            [
+                Password::class,
+                'caption' => 'Passwort',
+                'system' => true,
+                'ui' => ['form' => ['inputAttr' => ['autocomplete' => 'new-password']]]
+            ]
+        );
+        $this->addfield(
+            'role',
+            [
+                'type' => 'string',
+                'caption' => 'Benutzerrolle'
             ]
         );
         $this->addField(
@@ -72,7 +84,7 @@ class User extends Model
         $this->onHook(
             Model::HOOK_BEFORE_SAVE,
             function (self $model, $isUpdate) {
-                if(
+                if (
                     $model->get('username')
                     && !$model->isFieldUnique('username')
                 ) {
@@ -113,40 +125,29 @@ class User extends Model
     }
 
     public function resetPassword(
-        string $token,
+        string $tokenString,
         string $new_password_1,
         string $new_password_2
-    ) {
+    ): void {
         //new passwords need to match
         if ($new_password_1 !== $new_password_2) {
             throw new UserException('Die neuen Passwörter stimmen nicht überein');
         }
-        $t = new Token($this->persistence);
-        $t->loadBy('value', $token);
-        $this->tryLoad($t->get('model_id'));
-        if (!$this->loaded()) {
-            throw new UserException('Das Token konnte nicht gefunden werden');
-        }
 
+        $token = Token::loadTokenForModel($tokenString, $this);
         $this->set('password', $new_password_1);
         $this->save();
-        $t->delete();
+        $token->markAsUsed();
     }
 
     public function setNewToken(): string
     {
-        $t = new Token($this->persistence, ['parentObject' => $this, 'expiresAfterInMinutes' => 180]);
-        $t->save();
-        return $t->get('value');
+        $token = new Token($this->persistence, ['parentObject' => $this, 'expiresAfterInMinutes' => 180]);
+        $token->save();
+        return $token->get('value');
     }
 
-    public function getSignature()
-    {
-        return $this->get('signature');
-    }
-
-
-    public function addFailedLogin(bool $save = true)
+    public function addFailedLogin(bool $save = true): void
     {
         $this->set('failed_logins', $this->get('failed_logins') + 1);
         if ($save) {
@@ -154,7 +155,7 @@ class User extends Model
         }
     }
 
-    public function setFailedLoginsToZero(bool $save = true)
+    public function setFailedLoginsToZero(bool $save = true): void
     {
         $this->set('failed_logins', 0);
         if ($save) {
@@ -164,15 +165,11 @@ class User extends Model
 
     public function hasTooManyFailedLogins(): bool
     {
-        if ($this->get('failed_logins') > $this->maxFailedLogins) {
-            return true;
-        }
-
-        return false;
+        return $this->get('failed_logins') > $this->maxFailedLogins;
     }
 
     public function getRemainingLogins(): int
     {
-        return (int)$this->maxFailedLogins - $this->get('failed_logins');
+        return $this->maxFailedLogins - $this->get('failed_logins');
     }
 }

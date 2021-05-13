@@ -1,14 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace PMRAtk\tests\phpunit\Data;
+namespace userforatk\tests;
 
-use auditforatk\Audit;
-use Exception;
-use PMRAtk\App\App;
-use PMRAtk\Data\Token;
-use PMRAtk\Data\User;
-use PMRAtk\tests\phpunit\TestCase;
+use Atk4\Ui\App;
+use tokenforatk\Token;
+use traitsforatkdata\TestCase;
 use traitsforatkdata\UserException;
+use userforatk\User;
 
 class UserTest extends TestCase
 {
@@ -19,22 +17,20 @@ class UserTest extends TestCase
 
     protected $sqlitePersistenceModels = [
         User::class,
-        Audit::class,
     ];
 
     public function setUp(): void
     {
         parent::setUp();
         $this->persistence = $this->getSqliteTestPersistence();
-        $this->app = new App(['nologin'], ['always_run' => false]);
+        $this->app = new App(['always_run' => false]);
         $this->app->db = $this->persistence;
         $this->persistence->app = $this->app;
     }
 
     public function testUserNameUnique()
     {
-        $persistence = $this->getSqliteTestPersistence();
-        $c = new User($persistence);
+        $c = new User($this->persistence);
         $c->set('name', 'Duggu');
         $c->set('username', 'ABC');
         $c->save();
@@ -46,7 +42,8 @@ class UserTest extends TestCase
         $c2->save();
     }
 
-    public function testUserWithEmptyUsernameCanBeSaved() {
+    public function testUserWithEmptyUsernameCanBeSaved()
+    {
         $persistence = $this->getSqliteTestPersistence();
         $c = new User($persistence);
         $c->save();
@@ -68,7 +65,7 @@ class UserTest extends TestCase
         $loggedInUser->save();
         $this->app->auth->user = $loggedInUser;
 
-        self::expectException(\atk4\data\Exception::class);
+        self::expectException(\Atk4\Data\Exception::class);
         $user->setNewPassword('ggg', 'ggg');
     }
 
@@ -96,30 +93,6 @@ class UserTest extends TestCase
         $user->setNewPassword('gggg', 'gggg');
         self::assertTrue(true);
     }
-
-    /*
-    public function testsendResetPasswordEmail()
-    {
-        $persistence = $this->getSqliteTestPersistence([EmailAccount::class, Token::class]);
-        $this->_addStandardEmailAccount($persistence);
-        $c = new User($persistence);
-        $c->set('username', 'test');
-        $c->save();
-
-        //unexisting username should throw exception
-        $exception_found = false;
-        try {
-            $c->sendResetPasswordEmail('LOBO');
-        } catch (Exception $e) {
-            $exception_found = true;
-        }
-        self::assertTrue($exception_found);
-
-        //with correct username it should work
-        $initial_token_count = (new Token($persistence))->action('count')->getOne();
-        $c->sendResetPasswordEmail('test');
-        self::assertEquals($initial_token_count + 1, (new Token($persistence))->action('count')->getOne());
-    }*/
 
     public function testResetPassword()
     {

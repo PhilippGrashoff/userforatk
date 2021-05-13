@@ -19,12 +19,12 @@
   },
   "autoload": {
     "psr-4": {
-      "tokenforatk\\": "src"
+      "userforatk\\": "src"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "tokenforatk\\tests\\": "tests"
+      "userforatk\\tests\\": "tests"
     }
   }
 }
