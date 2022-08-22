@@ -4,6 +4,8 @@ namespace userforatk;
 
 use Atk4\Data\Exception;
 use Atk4\Data\Model;
+use Atk4\Login\Field\Password;
+use secondarymodelforatk\SecondaryModelRelationTrait;
 use tokenforatk\Token;
 use traitsforatkdata\UniqueFieldTrait;
 use traitsforatkdata\UserException;
@@ -13,6 +15,7 @@ class User extends Model
 {
 
     use UniqueFieldTrait;
+    use SecondaryModelRelationTrait;
 
     public $table = 'user';
     public $caption = 'Benutzer';
@@ -23,6 +26,7 @@ class User extends Model
     protected function init(): void
     {
         parent::init();
+        $this->addSecondaryModelHasMany(Token::class);
         $this->addfield(
 
             'name',
@@ -102,8 +106,9 @@ class User extends Model
     ): void {
         //other user than logged in user tries saving?
         if (
-            $this->app->auth->user->loaded()
-            && $this->app->auth->user->get('id') !== $this->get('id')
+            isset($this->persistence->app->auth)
+            && $this->persistence->app->auth->user->loaded()
+            && $this->persistence->app->auth->user->get('id') !== $this->get('id')
         ) {
             throw new Exception('Password can only be changed by account owner');
         }
@@ -134,18 +139,12 @@ class User extends Model
             throw new UserException('Die neuen Passwörter stimmen nicht überein');
         }
 
-        $token = Token::loadTokenForModel($tokenString, $this);
+        $token = Token::loadTokenForEntity($this, $tokenString);
         $this->set('password', $new_password_1);
         $this->save();
-        $token->markAsUsed();
+        $token->delete();
     }
 
-    public function setNewToken(): string
-    {
-        $token = new Token($this->persistence, ['parentObject' => $this, 'expiresAfterInMinutes' => 180]);
-        $token->save();
-        return $token->get('value');
-    }
 
     public function addFailedLogin(bool $save = true): void
     {

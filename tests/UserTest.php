@@ -2,6 +2,7 @@
 
 namespace userforatk\tests;
 
+use Atk4\Data\Exception;
 use Atk4\Ui\App;
 use tokenforatk\Token;
 use traitsforatkdata\TestCase;
@@ -30,24 +31,24 @@ class UserTest extends TestCase
 
     public function testUserNameUnique()
     {
-        $c = new User($this->persistence);
-        $c->set('name', 'Duggu');
-        $c->set('username', 'ABC');
-        $c->save();
+        $user = new User($this->persistence);
+        $user->set('name', 'Duggu');
+        $user->set('username', 'ABC');
+        $user->save();
 
-        $c2 = new User($persistence);
-        $c2->set('name', 'sfsdf');
-        $c2->set('username', 'ABC');
-        self::expectException(Exception::class);
-        $c2->save();
+        $user2 = new User($this->persistence);
+        $user2->set('name', 'sfsdf');
+        $user2->set('username', 'ABC');
+        self::expectException(UserException::class);
+        $user2->save();
     }
 
     public function testUserWithEmptyUsernameCanBeSaved()
     {
         $persistence = $this->getSqliteTestPersistence();
-        $c = new User($persistence);
-        $c->save();
-        self::assertEmpty($c->get('username'));
+        $user = new User($persistence);
+        $user->save();
+        self::assertEmpty($user->get('username'));
     }
 
     public function testExceptionSetNewPasswordOtherUserLoggedIn()
@@ -63,7 +64,9 @@ class UserTest extends TestCase
         $loggedInUser->set('username', 'FRE');
         $loggedInUser->set('password', 'FRE');
         $loggedInUser->save();
-        $this->app->auth->user = $loggedInUser;
+        $this->persistence->app = new \stdClass();
+        $this->persistence->app->auth = new \stdClass();
+        $this->persistence->app->auth->user = $loggedInUser;
 
         self::expectException(\Atk4\Data\Exception::class);
         $user->setNewPassword('ggg', 'ggg');
@@ -97,55 +100,51 @@ class UserTest extends TestCase
     public function testResetPassword()
     {
         $persistence = $this->getSqliteTestPersistence([Token::class]);
-        $c = new User($persistence);
-        $c->set('name', 'Duggu');
-        $c->set('username', 'Duggudd');
-        $c->save();
-        $token = $c->setNewToken();
+        $user = new User($persistence);
+        $user->set('name', 'Duggu');
+        $user->set('username', 'Duggudd');
+        $user->save();
+        $token = Token::createTokenForEntity($user);
 
-        //unexisting username should throw exception
+        //unexisting Token should throw exception
         $exception_found = false;
         try {
-            $c->resetPassword('nonexistingtoken', 'nuggu', 'nuggu');
-        } catch (Exception $e) {
+            $user->resetPassword('nonexistingtoken', 'nuggu', 'nuggu');
+        } catch (UserException $e) {
             $exception_found = true;
         }
         self::assertTrue($exception_found);
 
-        //non matching passwords should cause exception
+        //non-matching passwords should cause exception
         $exception_found = false;
         try {
-            $c->resetPassword($token, 'nuggu', 'duggu');
-        } catch (Exception $e) {
+            $user->resetPassword($token->getTokenString(), 'nuggu', 'duggu');
+        } catch (UserException $e) {
             $exception_found = true;
         }
         self::assertTrue($exception_found);
 
         //that should work
-        $c->resetPassword($token, 'nuggu', 'nuggu');
+        $user->resetPassword($token->getTokenString(), 'nuggu', 'nuggu');
 
         //token should be deleted
         $t = new Token($persistence);
-        $t->tryLoadBy('value', $token);
+        $t->tryLoadBy('value', $token->getTokenString());
         self::assertFalse($t->loaded());
     }
 
     public function testResetPasswordTokenNotConnectedToModel()
     {
         $persistence = $this->getSqliteTestPersistence([Token::class]);
-        $c = new User($persistence);
-        $c->set('name', 'Duggu');
-        $c->set('username', 'Duggudd');
-        $c->save();
-        $token = $c->setNewToken();
-
-        //token should be deleted
-        $t = new Token($persistence);
-        $t->loadBy('value', $token);
-        $t->set('model_id', 99999);
-        $t->save();
+        $user = new User($persistence);
+        $user->set('name', 'Duggu');
+        $user->set('username', 'Duggudd');
+        $user->save();
+        $token = Token::createTokenForEntity($user);
+        $token->set('model_id', 99999);
+        $token->save();
 
         self::expectException(UserException::class);
-        $c->resetPassword($token, 'DEDE', 'DEDE');
+        $user->resetPassword($token->getTokenString(), 'DEDE', 'DEDE');
     }
 }
